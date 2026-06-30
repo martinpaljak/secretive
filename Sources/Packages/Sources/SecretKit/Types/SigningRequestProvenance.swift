@@ -7,8 +7,21 @@ public struct SigningRequestProvenance: Equatable, Sendable {
     /// A list of processes involved in the request.
     /// - Note: A chain will typically consist of many elements even for a simple request. For example, running `git fetch` in Terminal.app would generate a request chain of `ssh` -> `git` -> `zsh` -> `login` -> `Terminal.app`
     public var chain: [Process]
+    /// A localized clause describing what the signature authorizes, derived from the signed data.
+    public var signingPurpose: String?
     public init(root: Process) {
         self.chain = [root]
+    }
+
+}
+
+extension SigningRequestProvenance {
+
+    /// The localized reason shown in the authentication prompt for a signature request.
+    public func signatureReason(secretName: String) -> String {
+        let base = String(localized: .authContextRequestSignatureDescription(appName: origin.displayName, secretName: secretName))
+        guard let signingPurpose else { return base }
+        return "\(base) \(signingPurpose)"
     }
 
 }

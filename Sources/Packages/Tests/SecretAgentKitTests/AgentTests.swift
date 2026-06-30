@@ -111,7 +111,9 @@ import CertificateKit
         let request = try SSHAgentInputParser().parse(data: Constants.Requests.requestSignature)
         _ = await agent.handle(request: request, provenance: .test)
         #expect(witnessTrace == speakNowTrace)
-        #expect(witnessTrace == .test)
+        #expect(witnessTrace?.chain == SigningRequestProvenance.test.chain)
+        // The request is a user authentication, so the witness sees the derived signing purpose.
+        #expect(witnessTrace?.signingPurpose?.contains("git") == true)
     }
 
     // MARK: Exception Handling

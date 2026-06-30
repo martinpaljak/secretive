@@ -42,6 +42,8 @@ extension Agent {
                 response.append(await identities())
                 logger.debug("Agent returned \(SSHAgent.Response.agentIdentitiesAnswer.debugDescription)")
             case .signRequest(let context):
+                var provenance = provenance
+                provenance.signingPurpose = context.signedData.localizedPurpose
                 response.append(SSHAgent.Response.agentSignResponse.data)
                 response.append(try await sign(data: context.dataToSign, keyBlob: context.keyBlob, provenance: provenance))
                 logger.debug("Agent returned \(SSHAgent.Response.agentSignResponse.debugDescription)")

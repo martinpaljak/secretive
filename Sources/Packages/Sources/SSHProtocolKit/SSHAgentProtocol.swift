@@ -61,10 +61,12 @@ extension SSHAgent {
         public struct SignatureRequestContext: Sendable, Codable {
             public let keyBlob: Data
             public let dataToSign: Data
+            public let signedData: SignedDataContext
 
             public init(keyBlob: Data, dataToSign: Data) {
                 self.keyBlob = keyBlob
                 self.dataToSign = dataToSign
+                self.signedData = SignedDataContext(parsing: dataToSign)
             }
 
             public static var empty: SignatureRequestContext {

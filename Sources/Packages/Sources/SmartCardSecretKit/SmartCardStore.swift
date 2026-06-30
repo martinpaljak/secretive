@@ -73,7 +73,7 @@ extension SmartCard {
                 context = unsafe existing.context
             } else {
                 let newContext = LAContext()
-                newContext.localizedReason = String(localized: .authContextRequestSignatureDescription(appName: provenance.origin.displayName, secretName: secret.name))
+                newContext.localizedReason = provenance.signatureReason(secretName: secret.name)
                 newContext.localizedCancelTitle = String(localized: .authContextRequestDenyButton)
                 context = newContext
             }
