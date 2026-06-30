@@ -17,4 +17,9 @@ import Testing
         #expect(erased.publicKey == secret.publicKey)
     }
 
+    @Test func awaitInProgressPersistenceWhenIdle() async {
+        let handler = PersistentAuthenticationHandler<SmartCard.Secret>()
+        #expect(await handler.awaitInProgressPersistence() == false)
+    }
+
 }

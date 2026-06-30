@@ -38,6 +38,8 @@ package final class PersistentAuthenticationContext<SecretType: Secret>: Persist
 package actor PersistentAuthenticationHandler<SecretType: Secret>: Sendable {
 
     private var persistedAuthenticationContexts: [SecretType: PersistentAuthenticationContext<SecretType>] = [:]
+    private var inProgressPersistenceCount = 0
+    private var pendingSigningRetries: [CheckedContinuation<Void, Never>] = []
 
     package init() {
     }
@@ -48,6 +50,8 @@ package actor PersistentAuthenticationHandler<SecretType: Secret>: Sendable {
     }
 
     package func persistAuthentication(secret: SecretType, forDuration duration: TimeInterval) async throws {
+        inProgressPersistenceCount += 1
+        defer { finishPersistence() }
         let newContext = LAContext()
         newContext.touchIDAuthenticationAllowableReuseDuration = duration
         newContext.localizedCancelTitle = String(localized: .authContextRequestDenyButton)
@@ -63,6 +67,29 @@ package actor PersistentAuthenticationHandler<SecretType: Secret>: Sendable {
         guard success else { return }
         let context = PersistentAuthenticationContext(secret: secret, context: newContext, duration: duration)
         persistedAuthenticationContexts[secret] = context
+    }
+
+    /// Waits for an in-progress persistence authorization to settle.
+    /// Establishing a persisted authorization opens a system prompt, which dismisses a signing
+    /// prompt already on screen and fails that request. The dismissed request waits here, then
+    /// signs again, reusing the persisted context if one was created.
+    /// - Returns: whether a persistence authorization was in progress, meaning the caller should retry.
+    package func awaitInProgressPersistence() async -> Bool {
+        guard inProgressPersistenceCount > 0 else { return false }
+        await withCheckedContinuation { continuation in
+            pendingSigningRetries.append(continuation)
+        }
+        return true
+    }
+
+    private func finishPersistence() {
+        inProgressPersistenceCount -= 1
+        guard inProgressPersistenceCount == 0 else { return }
+        let retries = pendingSigningRetries
+        pendingSigningRetries.removeAll()
+        for retry in retries {
+            retry.resume()
+        }
     }
 
 }
