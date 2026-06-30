@@ -56,7 +56,7 @@ let package = Package(
         .testTarget(
             name: "SecretKitTests",
             dependencies: ["SecretKit", "SecretAgentKit", "SecureEnclaveSecretKit", "SmartCardSecretKit"],
-            swiftSettings: swiftSettings,
+            swiftSettings: testSwiftSettings,
         ),
         .target(
             name: "SecureEnclaveSecretKit",
@@ -95,7 +95,7 @@ let package = Package(
         .testTarget(
             name: "SSHProtocolKitTests",
             dependencies: ["SSHProtocolKit"],
-            swiftSettings: swiftSettings,
+            swiftSettings: testSwiftSettings,
         ),
         .target(
             name: "Formatters",
@@ -137,9 +137,14 @@ var localization: Resource {
 }
 
 var swiftSettings: [PackageDescription.SwiftSetting] {
+    testSwiftSettings + [.strictMemorySafety()]
+}
+
+// Strict memory safety is left off for tests: SwiftPM's generated test entry point calls C
+// open() without an unsafe marker, which the gate turns into a hard error under warnings-as-errors.
+var testSwiftSettings: [PackageDescription.SwiftSetting] {
     [
         .swiftLanguageMode(.v6),
-        .treatAllWarnings(as: .error),
-        .strictMemorySafety()
+        .treatAllWarnings(as: .error)
     ]
 }

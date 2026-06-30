@@ -14,7 +14,7 @@ public struct SSHAgentInputParser: SSHAgentInputParserProtocol {
     private let logger = Logger(subsystem: "com.maxgoedjen.secretive.secretagent", category: "InputParser")
 
     public init() {
-        assert(Bundle.main.bundleURL.pathExtension == "xpc" || ProcessInfo.processInfo.processName == "xctest", "Potentially unsafe parsing code should run in an XPC service")
+        assert(Bundle.main.bundleURL.pathExtension == "xpc" || NSClassFromString("XCTestCase") != nil, "Potentially unsafe parsing code should run in an XPC service")
     }
 
     public func parse(data: Data) throws(AgentParsingError) -> SSHAgent.Request {
