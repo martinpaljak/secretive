@@ -18,6 +18,7 @@ extension SecureEnclave {
         public let id = UUID()
         public let name = String(localized: .secureEnclave)
         private let persistentAuthenticationHandler = PersistentAuthenticationHandler<Secret>()
+        private let promptGate = PromptGate()
 
         /// Initializes a Store.
         @MainActor public init() {
@@ -38,6 +39,18 @@ extension SecureEnclave {
         // MARK: SecretStore
         
         public func sign(data: Data, with secret: Secret, for provenance: SigningRequestProvenance) async throws -> Data {
+            // macOS shows at most one authentication prompt, and a newer Secure Enclave request
+            // cancels any in-flight one. Keys that prompt are funneled through a serial gate so
+            // their prompts appear one at a time. Keys that do not prompt run concurrently.
+            guard secret.authenticationRequirement.required else {
+                return try await performSign(data: data, with: secret, for: provenance)
+            }
+            return try await promptGate.serialize {
+                try await self.performSign(data: data, with: secret, for: provenance)
+            }
+        }
+
+        private func performSign(data: Data, with secret: Secret, for provenance: SigningRequestProvenance) async throws -> Data {
             do {
                 return try await attemptSignature(data: data, with: secret, for: provenance)
             } catch {
@@ -302,5 +315,29 @@ extension SecureEnclave.Store {
     
     struct UnsupportedAlgorithmError: Error {}
     struct MissingAttributesError: Error {}
+
+}
+
+/// Runs the operations handed to it one at a time, each completing before the next begins.
+/// Callers queue in arrival order; a waiting caller is resumed when its predecessor finishes.
+private actor PromptGate {
+
+    private var busy = false
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    func serialize<T: Sendable>(_ operation: @Sendable () async throws -> T) async rethrows -> T {
+        if busy {
+            await withCheckedContinuation { waiting.append($0) }
+        }
+        busy = true
+        defer {
+            if waiting.isEmpty {
+                busy = false
+            } else {
+                waiting.removeFirst().resume()
+            }
+        }
+        return try await operation()
+    }
 
 }
